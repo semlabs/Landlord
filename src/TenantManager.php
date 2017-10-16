@@ -141,13 +141,7 @@ class TenantManager
         }
 
         $this->modelTenants($model)->each(function ($id, $tenant) use ($model) {
-            $model->addGlobalScope($tenant, function (Builder $builder) use ($tenant, $id, $model) {
-                if($this->getTenants()->first() && $this->getTenants()->first() != $id){
-                    $id = $this->getTenants()->first();
-                }
-
-                $builder->where($model->getQualifiedTenant($tenant), '=', $id);
-            });
+            $this->adGlobalScopeToSingleModel($tenant, $id, $model);
         });
     }
 
@@ -163,17 +157,25 @@ class TenantManager
                     $model->setAttribute($tenant, $id);
                 }
 
-                $model->addGlobalScope($tenant, function (Builder $builder) use ($tenant, $id, $model) {
-                    if($this->getTenants()->first() && $this->getTenants()->first() != $id){
-                        $id = $this->getTenants()->first();
-                    }
-
-                    $builder->where($model->getQualifiedTenant($tenant), '=', $id);
-                });
+                $this->adGlobalScopeToSingleModel($tenant, $id, $model);
             });
         });
 
         $this->deferredModels = collect();
+    }
+
+    /**
+     * Add the global scope to a single model
+     */
+    private function addGlobalScopeToSingleModel($tenant, $id, $model)
+    {
+        $model->addGlobalScope($tenant, function (Builder $builder) use ($tenant, $id, $model) {
+            if($this->getTenants()->first() && $this->getTenants()->first() != $id){
+                $id = $this->getTenants()->first();
+            }
+
+            $builder->where($model->getQualifiedTenant($tenant), '=', $id);
+        });
     }
 
     /**
