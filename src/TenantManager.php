@@ -141,7 +141,7 @@ class TenantManager
         }
 
         $this->modelTenants($model)->each(function ($id, $tenant) use ($model) {
-            $this->adGlobalScopeToSingleModel($tenant, $id, $model);
+            $this->addGlobalScopeToSingleModel($tenant, $id, $model);
         });
     }
 
@@ -157,7 +157,7 @@ class TenantManager
                     $model->setAttribute($tenant, $id);
                 }
 
-                $this->adGlobalScopeToSingleModel($tenant, $id, $model);
+                $this->addGlobalScopeToSingleModel($tenant, $id, $model);
             });
         });
 
