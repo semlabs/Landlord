@@ -14,19 +14,42 @@ class LandlordTest extends TestCase
 
         $landlord->addTenant('tenant_a_id', 1);
 
-        $this->assertEquals(['tenant_a_id' => 1], $landlord->getTenants()->toArray());
+        $this->assertEquals(['tenant_a_id' => [1]], $landlord->getTenants()->toArray());
 
         $landlord->addTenant('tenant_b_id', 2);
 
-        $this->assertEquals(['tenant_a_id' => 1, 'tenant_b_id' => 2], $landlord->getTenants()->toArray());
+        $this->assertEquals(['tenant_a_id' => [1], 'tenant_b_id' => [2]], $landlord->getTenants()->toArray());
 
-        $landlord->removeTenant('tenant_a_id');
+        $landlord->removeTenant('tenant_a_id', 1);
 
-        $this->assertEquals(['tenant_b_id' => 2], $landlord->getTenants()->toArray());
+        $this->assertEquals(['tenant_b_id' => [2]], $landlord->getTenants()->toArray());
 
         $this->assertTrue($landlord->hasTenant('tenant_b_id'));
 
         $this->assertFalse($landlord->hasTenant('tenant_a_id'));
+    }
+
+    public function testTenantWithMultipleIds()
+    {
+        $landlord = new TenantManager();
+
+        $landlord->addTenant('tenant_a_id', 1);
+        $landlord->addTenant('tenant_a_id', 11);
+
+        $this->assertEquals(['tenant_a_id' => [1, 11]], $landlord->getTenants()->toArray());
+
+        $landlord->addTenant('tenant_b_id', 2);
+        $landlord->addTenant('tenant_b_id', 22);
+
+        $this->assertEquals(['tenant_a_id' => [1, 11], 'tenant_b_id' => [2, 22]], $landlord->getTenants()->toArray());
+
+        $landlord->removeTenant('tenant_a_id', 1);
+
+        $this->assertEquals(['tenant_a_id' => [11], 'tenant_b_id' => [2, 22]], $landlord->getTenants()->toArray());
+
+        $this->assertTrue($landlord->hasTenant('tenant_b_id'));
+
+        $this->assertTrue($landlord->hasTenant('tenant_a_id'));
     }
 
     public function testTenantsWithModels()
@@ -45,15 +68,15 @@ class LandlordTest extends TestCase
 
         $landlord->addTenant($tenantA);
 
-        $this->assertEquals(['tenant_a_id' => 1], $landlord->getTenants()->toArray());
+        $this->assertEquals(['tenant_a_id' => [1]], $landlord->getTenants()->toArray());
 
         $landlord->addTenant($tenantB);
 
-        $this->assertEquals(['tenant_a_id' => 1, 'tenant_b_id' => 2], $landlord->getTenants()->toArray());
+        $this->assertEquals(['tenant_a_id' => [1], 'tenant_b_id' => [2]], $landlord->getTenants()->toArray());
 
-        $landlord->removeTenant($tenantA);
+        $landlord->removeTenant($tenantA, 1);
 
-        $this->assertEquals(['tenant_b_id' => 2], $landlord->getTenants()->toArray());
+        $this->assertEquals(['tenant_b_id' => [2]], $landlord->getTenants()->toArray());
 
         $this->assertTrue($landlord->hasTenant('tenant_b_id'));
 
@@ -91,7 +114,7 @@ class LandlordTest extends TestCase
 
         $landlord->applyTenantScopesToDeferredModels();
 
-        $this->assertEquals(1, $model->tenant_a_id);
+        $this->assertEquals([1], $model->tenant_a_id);
     }
 
     public function testNewModel()
@@ -108,20 +131,20 @@ class LandlordTest extends TestCase
 
         $landlord->newModel($model);
 
-        $this->assertEquals(1, $model->tenant_a_id);
+        $this->assertEquals([1], $model->tenant_a_id);
 
         $this->assertNull($model->tenant_b_id);
     }
 
-    public function testGetTenantId()
+    public function testGetTenantIds()
     {
         $landlord = new TenantManager();
 
         $landlord->addTenant('tenant_a_id', 1);
 
-        $tenantId = $landlord->getTenantId('tenant_a_id');
+        $tenantId = $landlord->getTenantIds('tenant_a_id');
 
-        $this->assertEquals(1, $tenantId);
+        $this->assertEquals([1], $tenantId);
     }
 }
 

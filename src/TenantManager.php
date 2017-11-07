@@ -77,8 +77,7 @@ class TenantManager
 
     private function addToCollection($collection, $key, $value)
     {
-        $values = $collection->get($key, collect())
-            ->push($value);
+        $values = $collection->get($key, collect())->push($value);
         $collection->put($key, $values);
 
         return $collection;
@@ -89,10 +88,11 @@ class TenantManager
         $values = $collection->get($key, collect())
             ->reject(function ($value) use ($valueToRemove) {
                 return $value === $valueToRemove;
+            })->values();
+        return $collection->put($key, $values)
+            ->reject(function ($values) {
+                return $values->isEmpty();
             });
-        $collection->put($key, $values);
-
-        return $collection;
     }
 
     /**
@@ -102,7 +102,7 @@ class TenantManager
      */
     public function removeTenant($tenant, $id)
     {
-        $this->removeFromCollection($this->tenants, $tenant, $id);
+        $this->tenants = $this->removeFromCollection($this->tenants, $this->getTenantKey($tenant), $id);
     }
 
     /**
@@ -140,7 +140,7 @@ class TenantManager
             );
         }
 
-        return $this->tenants->get($this->getTenantKey($tenant));
+        return $this->tenants->get($this->getTenantKey($tenant))->toArray();
     }
 
     /**
@@ -170,7 +170,7 @@ class TenantManager
             /* @var Model|BelongsToTenants $model */
             $this->modelTenants($model)->each(function ($ids, $tenant) use ($model) {
                 if (!isset($model->{$tenant})) {
-                    $model->setAttribute($tenant, $ids);
+                    $model->setAttribute($tenant, $ids->toArray());
                 }
 
                 $this->addGlobalScopeToSingleModel($tenant, $ids, $model);
@@ -190,7 +190,7 @@ class TenantManager
                 return;
             }
 
-            $builder->whereIn($model->getQualifiedTenant($tenant), $ids->all());
+            $builder->whereIn($model->getQualifiedTenant($tenant), $ids->toArray());
         });
     }
 
@@ -213,7 +213,7 @@ class TenantManager
 
         $this->modelTenants($model)->each(function ($tenantId, $tenantColumn) use ($model) {
             if (!isset($model->{$tenantColumn})) {
-                $model->setAttribute($tenantColumn, $tenantId);
+                $model->setAttribute($tenantColumn, $tenantId->toArray());
             }
         });
     }
