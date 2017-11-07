@@ -87,7 +87,7 @@ class TenantManager
     private function removeFromCollection($collection, $key, $valueToRemove)
     {
         $values = $collection->get($key, collect())
-            ->reject($values, function ($value) {
+            ->reject(function ($value) use ($valueToRemove) {
                 return $value === $valueToRemove;
             });
         $collection->put($key, $values);
