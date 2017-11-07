@@ -72,7 +72,27 @@ class TenantManager
             throw new TenantNullIdException('$id must not be null');
         }
 
-        $this->tenants->put($this->getTenantKey($tenant), $id);
+        $this->addToCollection($this->tenants, $this->getTenantKey($tenant), $id);
+    }
+
+    private function addToCollection($collection, $key, $value)
+    {
+        $values = $collection->get($key, collect())
+            ->push($value);
+        $collection->put($key, $values);
+
+        return $collection;
+    }
+
+    private function removeFromCollection($collection, $key, $valueToRemove)
+    {
+        $values = $collection->get($key, collect())
+            ->reject($values, function ($value) {
+                return $value === $valueToRemove;
+            });
+        $collection->put($key, $values);
+
+        return $collection;
     }
 
     /**
@@ -80,9 +100,9 @@ class TenantManager
      *
      * @param string|Model $tenant
      */
-    public function removeTenant($tenant)
+    public function removeTenant($tenant, $id)
     {
-        $this->tenants->pull($this->getTenantKey($tenant));
+        $this->removeFromCollection($this->tenants, $tenant, $id);
     }
 
     /**
@@ -112,7 +132,7 @@ class TenantManager
      *
      * @return mixed
      */
-    public function getTenantId($tenant)
+    public function getTenantIds($tenant)
     {
         if (!$this->hasTenant($tenant)) {
             throw new TenantColumnUnknownException(
@@ -136,8 +156,8 @@ class TenantManager
             return;
         }
 
-        $this->modelTenants($model)->each(function ($id, $tenant) use ($model) {
-            $this->addGlobalScopeToSingleModel($tenant, $id, $model);
+        $this->modelTenants($model)->each(function ($ids, $tenant) use ($model) {
+            $this->addGlobalScopeToSingleModel($tenant, $ids, $model);
         });
     }
 
@@ -148,12 +168,12 @@ class TenantManager
     {
         $this->deferredModels->each(function ($model) {
             /* @var Model|BelongsToTenants $model */
-            $this->modelTenants($model)->each(function ($id, $tenant) use ($model) {
+            $this->modelTenants($model)->each(function ($ids, $tenant) use ($model) {
                 if (!isset($model->{$tenant})) {
-                    $model->setAttribute($tenant, $id);
+                    $model->setAttribute($tenant, $ids);
                 }
 
-                $this->addGlobalScopeToSingleModel($tenant, $id, $model);
+                $this->addGlobalScopeToSingleModel($tenant, $ids, $model);
             });
         });
 
@@ -163,18 +183,14 @@ class TenantManager
     /**
      * Add the global scope to a single model
      */
-    private function addGlobalScopeToSingleModel($tenant, $id, $model)
+    private function addGlobalScopeToSingleModel($tenant, $ids, $model)
     {
-        $model->addGlobalScope($tenant, function (Builder $builder) use ($tenant, $id, $model) {
+        $model->addGlobalScope($tenant, function (Builder $builder) use ($tenant, $ids, $model) {
             if(!$this->enabled) {
                 return;
             }
 
-            if($this->getTenants()->first() && $this->getTenants()->first() != $id){
-                $id = $this->getTenants()->first();
-            }
-
-            $builder->where($model->getQualifiedTenant($tenant), '=', $id);
+            $builder->whereIn($model->getQualifiedTenant($tenant), $ids->all());
         });
     }
 
