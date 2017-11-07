@@ -2,6 +2,8 @@
 
 namespace HipsterJazzbo\Landlord;
 
+use HipsterJazzbo\Landlord\BelongsToTenants;
+use HipsterJazzbo\Landlord\BelongsToTenantHierarchy;
 use HipsterJazzbo\Landlord\Exceptions\TenantColumnUnknownException;
 use HipsterJazzbo\Landlord\Exceptions\TenantNullIdException;
 use Illuminate\Database\Eloquent\Builder;
@@ -152,7 +154,25 @@ class TenantManager
     {
         if ($this->tenants->isEmpty()) {
             // No tenants yet, defer scoping to a later stage
-            $this->deferredModels->push($model);
+            $this->deferredModels->push($model, false);
+            return;
+        }
+
+        $this->modelTenants($model)->each(function ($ids, $tenant) use ($model) {
+            $this->addGlobalScopeToSingleModel($tenant, collect($ids->first()), $model);
+        });
+    }
+
+    /**
+     * Applies applicable tenant scopes to a model.
+     *
+     * @param Model|BelongsToTenants $model
+     */
+    public function applyTenantHierarchyScopes(Model $model)
+    {
+        if ($this->tenants->isEmpty()) {
+            // No tenants yet, defer scoping to a later stage
+            $this->deferredModels->push($model, true);
             return;
         }
 
@@ -169,6 +189,9 @@ class TenantManager
         $this->deferredModels->each(function ($model) {
             /* @var Model|BelongsToTenants $model */
             $this->modelTenants($model)->each(function ($ids, $tenant) use ($model) {
+                if (array_key_exists(BelongsToTenants::class, class_uses($model))) {
+                   $ids = collect($ids->first());
+                }
                 if (!isset($model->{$tenant})) {
                     $model->setAttribute($tenant, $ids->toArray());
                 }

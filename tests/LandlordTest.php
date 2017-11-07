@@ -1,6 +1,7 @@
 <?php
 
 use HipsterJazzbo\Landlord\BelongsToTenants;
+use HipsterJazzbo\Landlord\BelongsToTenantHierarchy;
 use HipsterJazzbo\Landlord\Facades\Landlord;
 use HipsterJazzbo\Landlord\TenantManager;
 use Illuminate\Database\Eloquent\Model;
@@ -110,11 +111,28 @@ class LandlordTest extends TestCase
         $landlord->newModel($model);
 
         $landlord->addTenant('tenant_a_id', 1);
+        $landlord->addTenant('tenant_a_id', 11);
         $this->assertNull($model->tenant_a_id);
 
         $landlord->applyTenantScopesToDeferredModels();
 
         $this->assertEquals([1], $model->tenant_a_id);
+    }
+
+    public function testApplyTenantHierarchyScopesToDeferredModels()
+    {
+        $landlord = new TenantManager();
+
+        $model = new ModelBStub();
+        $landlord->newModel($model);
+
+        $landlord->addTenant('tenant_a_id', 1);
+        $landlord->addTenant('tenant_a_id', 11);
+        $this->assertNull($model->tenant_a_id);
+
+        $landlord->applyTenantScopesToDeferredModels();
+
+        $this->assertEquals([1, 11], $model->tenant_a_id);
     }
 
     public function testNewModel()
@@ -146,11 +164,39 @@ class LandlordTest extends TestCase
 
         $this->assertEquals([1], $tenantId);
     }
+
+    public function testApplyTenantHierarchyScopes()
+    {
+        $landlord = new TenantManager();
+
+        $landlord->addTenant('tenant_a_id', 1);
+        $landlord->addTenant('tenant_a_id', 11);
+
+        $landlord->addTenant('tenant_b_id', 2);
+        $landlord->addTenant('tenant_b_id', 22);
+
+        Landlord::shouldReceive('applyTenantScopes');
+
+        $model = new ModelBStub();
+
+        $landlord->applyTenantHierarchyScopes($model);
+
+        $this->assertArrayHasKey('tenant_a_id', $model->getGlobalScopes());
+
+        $this->assertArrayNotHasKey('tenant_b_id', $model->getGlobalScopes());
+    }
 }
 
 class ModelStub extends Model
 {
     use BelongsToTenants;
+
+    public $tenantColumns = ['tenant_a_id'];
+}
+
+class ModelBStub extends Model
+{
+    use BelongsToTenantHierarchy;
 
     public $tenantColumns = ['tenant_a_id'];
 }
