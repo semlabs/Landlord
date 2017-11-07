@@ -2,7 +2,6 @@
 
 ![Landlord for Laravel & Lumen 5.2+](readme-header.jpg)
 
-![StyleCI Status](https://styleci.io/repos/49851417/shield?branch=v2.0-wip)  
 [![Build Status](https://semaphoreci.com/api/v1/semlabs/landlord/branches/feature-hierachical-tenants/badge.svg)](https://semaphoreci.com/semlabs/landlord)
 
 A single database multi-tenancy package for Laravel & Lumen 5.2+.
