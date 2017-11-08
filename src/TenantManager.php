@@ -154,7 +154,7 @@ class TenantManager
     {
         if ($this->tenants->isEmpty()) {
             // No tenants yet, defer scoping to a later stage
-            $this->deferredModels->push($model, false);
+            $this->deferredModels->push($model);
             return;
         }
 
@@ -172,7 +172,7 @@ class TenantManager
     {
         if ($this->tenants->isEmpty()) {
             // No tenants yet, defer scoping to a later stage
-            $this->deferredModels->push($model, true);
+            $this->deferredModels->push($model);
             return;
         }
 
@@ -193,7 +193,7 @@ class TenantManager
                    $ids = collect($ids->first());
                 }
                 if (!isset($model->{$tenant})) {
-                    $model->setAttribute($tenant, $ids->toArray());
+                    $model->setAttribute($tenant, $ids->first());
                 }
 
                 $this->addGlobalScopeToSingleModel($tenant, $ids, $model);
@@ -236,7 +236,7 @@ class TenantManager
 
         $this->modelTenants($model)->each(function ($tenantId, $tenantColumn) use ($model) {
             if (!isset($model->{$tenantColumn})) {
-                $model->setAttribute($tenantColumn, $tenantId->toArray());
+                $model->setAttribute($tenantColumn, $tenantId->first());
             }
         });
     }
