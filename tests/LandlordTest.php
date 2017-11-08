@@ -116,7 +116,7 @@ class LandlordTest extends TestCase
 
         $landlord->applyTenantScopesToDeferredModels();
 
-        $this->assertEquals([1], $model->tenant_a_id);
+        $this->assertEquals(1, $model->tenant_a_id);
     }
 
     public function testApplyTenantHierarchyScopesToDeferredModels()
@@ -132,7 +132,7 @@ class LandlordTest extends TestCase
 
         $landlord->applyTenantScopesToDeferredModels();
 
-        $this->assertEquals([1, 11], $model->tenant_a_id);
+        $this->assertEquals(1, $model->tenant_a_id);
     }
 
     public function testNewModel()
@@ -149,7 +149,7 @@ class LandlordTest extends TestCase
 
         $landlord->newModel($model);
 
-        $this->assertEquals([1], $model->tenant_a_id);
+        $this->assertEquals(1, $model->tenant_a_id);
 
         $this->assertNull($model->tenant_b_id);
     }
