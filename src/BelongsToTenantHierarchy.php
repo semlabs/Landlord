@@ -9,9 +9,9 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 /**
  * @mixin Model
  */
-trait BelongsToTenantHierarchy 
+trait BelongsToTenantHierarchy
 {
-    use BelongsToTenants;
+    use BelongsTo;
 
     /**
      * Boot the trait. Will apply any scopes currently set, and
