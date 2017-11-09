@@ -30,4 +30,27 @@ trait BelongsToTenantHierarchy
             static::$landlord->newModel($model);
         });
     }
+
+    public function delete()
+    {
+        static::$landlord->modelTenants($this)->each(function ($tenantId, $tenantColumn) {
+            if(static::$landlord->getTenants()->first()->first() === $this->{$tenantColumn}) {
+                parent::delete();
+            }
+        });
+    }
+
+    public function update(array $attributes = [], array $options = [])
+    {
+        $updated = false;
+        static::$landlord->modelTenants($this)->each(function ($tenantId, $tenantColumn) {
+            if(static::$landlord->getTenants()->first()->first() === $this->{$tenantColumn}) {
+                parent::update($attributes, $options);
+                $updated = true;
+            }
+        });
+        if (!$updated) {
+           throw new ModelNotFoundException();
+        }
+    }
 }

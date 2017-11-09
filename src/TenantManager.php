@@ -127,6 +127,11 @@ class TenantManager
         return $this->tenants;
     }
 
+    public function clearTenants()
+    {
+       $this->tenants = collect(); 
+    }
+
     /**
      * @param $tenant
      *
@@ -285,7 +290,7 @@ class TenantManager
      *
      * @return Collection
      */
-    protected function modelTenants(Model $model)
+    public function modelTenants(Model $model)
     {
         return $this->tenants->only($model->getTenantColumns());
     }
