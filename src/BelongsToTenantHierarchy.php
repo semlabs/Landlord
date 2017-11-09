@@ -33,11 +33,16 @@ trait BelongsToTenantHierarchy
 
     public function delete()
     {
+        $updated = false;
         static::$landlord->modelTenants($this)->each(function ($tenantId, $tenantColumn) {
             if(static::$landlord->getTenants()->first()->first() === $this->{$tenantColumn}) {
                 parent::delete();
+                $updated = true;
             }
         });
+        if (!$updated) {
+           throw new ModelNotFoundException();
+        }
     }
 
     public function update(array $attributes = [], array $options = [])
