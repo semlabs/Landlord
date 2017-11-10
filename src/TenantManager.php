@@ -129,7 +129,7 @@ class TenantManager
 
     public function clearTenants()
     {
-       $this->tenants = collect(); 
+       $this->tenants = collect();
     }
 
     /**
@@ -164,7 +164,7 @@ class TenantManager
         }
 
         $this->modelTenants($model)->each(function ($ids, $tenant) use ($model) {
-            $this->addGlobalScopeToSingleModel($tenant, collect($ids->first()), $model);
+            $this->addGlobalScopeToSingleModel($tenant, true, $model);
         });
     }
 
@@ -182,7 +182,7 @@ class TenantManager
         }
 
         $this->modelTenants($model)->each(function ($ids, $tenant) use ($model) {
-            $this->addGlobalScopeToSingleModel($tenant, $ids, $model);
+            $this->addGlobalScopeToSingleModel($tenant, false, $model);
         });
     }
 
@@ -194,14 +194,16 @@ class TenantManager
         $this->deferredModels->each(function ($model) {
             /* @var Model|BelongsToTenants $model */
             $this->modelTenants($model)->each(function ($ids, $tenant) use ($model) {
+                $single = false;
                 if (array_key_exists(BelongsToTenants::class, class_uses($model))) {
                    $ids = collect($ids->first());
+                   $single = true;
                 }
                 if (!isset($model->{$tenant})) {
                     $model->setAttribute($tenant, $ids->first());
                 }
 
-                $this->addGlobalScopeToSingleModel($tenant, $ids, $model);
+                $this->addGlobalScopeToSingleModel($tenant, $single, $model);
             });
         });
 
@@ -211,15 +213,17 @@ class TenantManager
     /**
      * Add the global scope to a single model
      */
-    private function addGlobalScopeToSingleModel($tenant, $ids, $model)
+    private function addGlobalScopeToSingleModel($tenant, $single, $model)
     {
-        $model->addGlobalScope($tenant, function (Builder $builder) use ($tenant, $ids, $model) {
+        $model->addGlobalScope($tenant, function (Builder $builder) use ($tenant, $single, $model) {
             if(!$this->enabled) {
                 return;
             }
+            $ids = $single ? collect($this->modelTenants($model)->get($tenant)->first()) : $this->modelTenants($model)->get($tenant);
 
             $builder->whereIn($model->getQualifiedTenant($tenant), $ids->toArray());
         });
+
     }
 
     /**
@@ -295,3 +299,4 @@ class TenantManager
         return $this->tenants->only($model->getTenantColumns());
     }
 }
+

@@ -48,7 +48,7 @@ trait BelongsToTenantHierarchy
     public function update(array $attributes = [], array $options = [])
     {
         $updated = false;
-        static::$landlord->modelTenants($this)->each(function ($tenantId, $tenantColumn) {
+        static::$landlord->modelTenants($this)->each(function ($tenantId, $tenantColumn) use ($attributes, $options) {
             if(static::$landlord->getTenants()->first()->first() === $this->{$tenantColumn}) {
                 parent::update($attributes, $options);
                 $updated = true;
