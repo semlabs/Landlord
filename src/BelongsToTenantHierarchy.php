@@ -34,7 +34,7 @@ trait BelongsToTenantHierarchy
     public function delete()
     {
         $deleted = false;
-        static::$landlord->modelTenants($this)->each(function ($tenantId, $tenantColumn, &$deleted) {
+        static::$landlord->modelTenants($this)->each(function ($tenantId, $tenantColumn) use (&$deleted) {
             if(static::$landlord->getTenants()->first()->first() === $this->{$tenantColumn}) {
                 parent::delete();
                 $deleted = true;
