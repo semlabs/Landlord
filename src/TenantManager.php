@@ -2,6 +2,8 @@
 
 namespace HipsterJazzbo\Landlord;
 
+use HipsterJazzbo\Landlord\BelongsToTenants;
+use HipsterJazzbo\Landlord\BelongsToTenantHierarchy;
 use HipsterJazzbo\Landlord\Exceptions\TenantColumnUnknownException;
 use HipsterJazzbo\Landlord\Exceptions\TenantNullIdException;
 use Illuminate\Database\Eloquent\Builder;
@@ -72,7 +74,27 @@ class TenantManager
             throw new TenantNullIdException('$id must not be null');
         }
 
-        $this->tenants->put($this->getTenantKey($tenant), $id);
+        $this->addToCollection($this->tenants, $this->getTenantKey($tenant), $id);
+    }
+
+    private function addToCollection($collection, $key, $value)
+    {
+        $values = $collection->get($key, collect())->push($value);
+        $collection->put($key, $values);
+
+        return $collection;
+    }
+
+    private function removeFromCollection($collection, $key, $valueToRemove)
+    {
+        $values = $collection->get($key, collect())
+            ->reject(function ($value) use ($valueToRemove) {
+                return $value === $valueToRemove;
+            })->values();
+        return $collection->put($key, $values)
+            ->reject(function ($values) {
+                return $values->isEmpty();
+            });
     }
 
     /**
@@ -80,9 +102,9 @@ class TenantManager
      *
      * @param string|Model $tenant
      */
-    public function removeTenant($tenant)
+    public function removeTenant($tenant, $id)
     {
-        $this->tenants->pull($this->getTenantKey($tenant));
+        $this->tenants = $this->removeFromCollection($this->tenants, $this->getTenantKey($tenant), $id);
     }
 
     /**
@@ -105,6 +127,11 @@ class TenantManager
         return $this->tenants;
     }
 
+    public function clearTenants()
+    {
+       $this->tenants = collect();
+    }
+
     /**
      * @param $tenant
      *
@@ -112,7 +139,7 @@ class TenantManager
      *
      * @return mixed
      */
-    public function getTenantId($tenant)
+    public function getTenantIds($tenant)
     {
         if (!$this->hasTenant($tenant)) {
             throw new TenantColumnUnknownException(
@@ -120,7 +147,7 @@ class TenantManager
             );
         }
 
-        return $this->tenants->get($this->getTenantKey($tenant));
+        return $this->tenants->get($this->getTenantKey($tenant))->toArray();
     }
 
     /**
@@ -130,24 +157,32 @@ class TenantManager
      */
     public function applyTenantScopes(Model $model)
     {
-        if (!$this->enabled) {
-            return;
-        }
-
         if ($this->tenants->isEmpty()) {
             // No tenants yet, defer scoping to a later stage
             $this->deferredModels->push($model);
             return;
         }
 
-        $this->modelTenants($model)->each(function ($id, $tenant) use ($model) {
-            $model->addGlobalScope($tenant, function (Builder $builder) use ($tenant, $id, $model) {
-                if($this->getTenants()->first() && $this->getTenants()->first() != $id){
-                    $id = $this->getTenants()->first();
-                }
+        $this->modelTenants($model)->each(function ($ids, $tenant) use ($model) {
+            $this->addGlobalScopeToSingleModel($tenant, true, $model);
+        });
+    }
 
-                $builder->where($model->getQualifiedTenant($tenant), '=', $id);
-            });
+    /**
+     * Applies applicable tenant scopes to a model.
+     *
+     * @param Model|BelongsToTenants $model
+     */
+    public function applyTenantHierarchyScopes(Model $model)
+    {
+        if ($this->tenants->isEmpty()) {
+            // No tenants yet, defer scoping to a later stage
+            $this->deferredModels->push($model);
+            return;
+        }
+
+        $this->modelTenants($model)->each(function ($ids, $tenant) use ($model) {
+            $this->addGlobalScopeToSingleModel($tenant, false, $model);
         });
     }
 
@@ -158,22 +193,37 @@ class TenantManager
     {
         $this->deferredModels->each(function ($model) {
             /* @var Model|BelongsToTenants $model */
-            $this->modelTenants($model)->each(function ($id, $tenant) use ($model) {
+            $this->modelTenants($model)->each(function ($ids, $tenant) use ($model) {
+                $single = false;
+                if (array_key_exists(BelongsToTenants::class, class_uses($model))) {
+                   $ids = collect($ids->first());
+                   $single = true;
+                }
                 if (!isset($model->{$tenant})) {
-                    $model->setAttribute($tenant, $id);
+                    $model->setAttribute($tenant, $ids->first());
                 }
 
-                $model->addGlobalScope($tenant, function (Builder $builder) use ($tenant, $id, $model) {
-                    if($this->getTenants()->first() && $this->getTenants()->first() != $id){
-                        $id = $this->getTenants()->first();
-                    }
-
-                    $builder->where($model->getQualifiedTenant($tenant), '=', $id);
-                });
+                $this->addGlobalScopeToSingleModel($tenant, $single, $model);
             });
         });
 
         $this->deferredModels = collect();
+    }
+
+    /**
+     * Add the global scope to a single model
+     */
+    private function addGlobalScopeToSingleModel($tenant, $single, $model)
+    {
+        $model->addGlobalScope($tenant, function (Builder $builder) use ($tenant, $single, $model) {
+            if(!$this->enabled) {
+                return;
+            }
+            $ids = $single ? collect($this->modelTenants($model)->get($tenant)->first()) : $this->modelTenants($model)->get($tenant);
+
+            $builder->whereIn($model->getQualifiedTenant($tenant), $ids->toArray());
+        });
+
     }
 
     /**
@@ -195,7 +245,7 @@ class TenantManager
 
         $this->modelTenants($model)->each(function ($tenantId, $tenantColumn) use ($model) {
             if (!isset($model->{$tenantColumn})) {
-                $model->setAttribute($tenantColumn, $tenantId);
+                $model->setAttribute($tenantColumn, $tenantId->first());
             }
         });
     }
@@ -244,8 +294,9 @@ class TenantManager
      *
      * @return Collection
      */
-    protected function modelTenants(Model $model)
+    public function modelTenants(Model $model)
     {
         return $this->tenants->only($model->getTenantColumns());
     }
 }
+
